@@ -76,10 +76,6 @@ static int gr_vt_fd = -1;
 static struct fb_var_screeninfo vi;
 static struct fb_fix_screeninfo fi;
 
-inline size_t roundUpToPageSize(size_t x) {  //add by sndnvaps 
-	return (x + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
-}
-
 #ifdef PRINT_SCREENINFO
 static void print_fb_var_screeninfo()
 {
@@ -97,30 +93,27 @@ static void print_fb_var_screeninfo()
 static int get_framebuffer(GGLSurface *fb)
 {
     int fd;
-    void *bits, *vi2; //add *vi2 by sndnvaps 
+    void *bits;
 
     fd = open("/dev/graphics/fb0", O_RDWR);
-    if (fd < 0) {
+    if (fd < 0) 
+    {
         perror("cannot open fb0");
         return -1;
     }
 
-    vi2 = malloc(sizeof(vi) + sizeof(__u32));
-
-   // if (ioctl(fd, FBIOGET_VSCREENINFO, &vi) < 0) {
-      if (ioctl(fd, FBIOGET_VSCREENINFO, vi2) < 0) {
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &vi) < 0) 
+    {
         perror("failed to get fb0 info");
         close(fd);
-	free(vi2); //add by sndnvaps 
         return -1;
     }
-      memcpy((void*) &vi, vi2, sizeof(vi)); //add by sndnvaps 
-      free(vi2); // add by sndnvaps 
 
     fprintf(stderr, "Pixel format: %dx%d @ %dbpp\n", vi.xres, vi.yres, vi.bits_per_pixel);
 
     vi.bits_per_pixel = PIXEL_SIZE * 8;
-    if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_BGRA_8888) {
+    if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_BGRA_8888) 
+    {
         fprintf(stderr, "Pixel format: BGRA_8888\n");
         if (PIXEL_SIZE != 4)    fprintf(stderr, "E: Pixel Size mismatch!\n");
         vi.red.offset     = 8;
@@ -131,7 +124,9 @@ static int get_framebuffer(GGLSurface *fb)
         vi.blue.length    = 8;
         vi.transp.offset  = 0;
         vi.transp.length  = 8;
-    } else if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_RGBX_8888) {
+    } 
+    else if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_RGBX_8888) 
+    {
         fprintf(stderr, "Pixel format: RGBX_8888\n");
         if (PIXEL_SIZE != 4)    fprintf(stderr, "E: Pixel Size mismatch!\n");
         vi.red.offset     = 24;
@@ -142,7 +137,9 @@ static int get_framebuffer(GGLSurface *fb)
         vi.blue.length    = 8;
         vi.transp.offset  = 0;
         vi.transp.length  = 8;
-    } else if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_RGB_565) {
+    } 
+    else if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_RGB_565) 
+    {
 #ifdef RECOVERY_RGB_565
 		fprintf(stderr, "Pixel format: RGB_565\n");
 		vi.blue.offset    = 0;
@@ -174,20 +171,23 @@ static int get_framebuffer(GGLSurface *fb)
     vi.vmode = FB_VMODE_NONINTERLACED;
     vi.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 
-    if (ioctl(fd, FBIOPUT_VSCREENINFO, &vi) < 0) {
+    if (ioctl(fd, FBIOPUT_VSCREENINFO, &vi) < 0) 
+    {
         perror("failed to put fb0 info");
         close(fd);
         return -1;
     }
 
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &fi) < 0) {
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &fi) < 0) 
+    {
         perror("failed to get fb0 info");
         close(fd);
         return -1;
     }
-    size_t size = roundUpToPageSize(vi.yres * fi.line_length) * NUM_BUFFERS; //add by sndnvaps 
+
     bits = mmap(0, fi.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (bits == MAP_FAILED) {
+    if (bits == MAP_FAILED) 
+    {
         perror("failed to mmap framebuffer");
         close(fd);
         return -1;
@@ -208,8 +208,7 @@ static int get_framebuffer(GGLSurface *fb)
 #endif
     fb->data = bits;
     fb->format = PIXEL_FORMAT;
-   // memset(fb->data, 0, vi.yres * fb->stride * PIXEL_SIZE);
-    memset(fb->data, 0, roundUpToPageSize(vi.yres * fb->stride * PIXEL_SIZE)); //add by sndnvaps 
+    memset(fb->data, 0, vi.yres * fb->stride * PIXEL_SIZE);
 
     fb++;
 
@@ -224,16 +223,13 @@ static int get_framebuffer(GGLSurface *fb)
     fb->height = vi.yres;
 #ifdef BOARD_HAS_JANKY_BACKBUFFER
     fb->stride = fi.line_length/2;
-   // fb->data = (void*) (((unsigned) bits) + vi.yres * fi.line_length);
-    fb->data = (void*) (((unsigned) bits) + roundUpToPageSize(vi.yres * fi.line_lenth)); //add by sndnvaps 
+    fb->data = (void*) (((unsigned) bits) + vi.yres * fi.line_length);
 #else
     fb->stride = vi.xres_virtual;
-   // fb->data = (void*) (((unsigned) bits) + vi.yres * fb->stride * PIXEL_SIZE);
-    fb->data = (void*) (((unsigned) bits) + roundUpToPageSize(vi.yres * fb->stride * PIXEL_SIZE)); //add by sndnvaps 
+    fb->data = (void*) (((unsigned) bits) + vi.yres * fb->stride * PIXEL_SIZE);
 #endif
     fb->format = PIXEL_FORMAT;
-    //memset(fb->data, 0, vi.yres * fb->stride * PIXEL_SIZE);
-    memset(fb->data, 0, roundUpToPageSize(vi.yres * fb->stride * PIXEL_SIZE)); //add by sndnvaps 
+    memset(fb->data, 0, vi.yres * fb->stride * PIXEL_SIZE);
 
 #ifdef PRINT_SCREENINFO
 	print_fb_var_screeninfo();
@@ -242,7 +238,8 @@ static int get_framebuffer(GGLSurface *fb)
     return fd;
 }
 
-static void get_memory_surface(GGLSurface* ms) {
+static void get_memory_surface(GGLSurface* ms) 
+{
   ms->version = sizeof(*ms);
   ms->width = vi.xres;
   ms->height = vi.yres;
@@ -666,8 +663,8 @@ int gr_init(void)
     gl->enable(gl, GGL_BLEND);
     gl->blendFunc(gl, GGL_SRC_ALPHA, GGL_ONE_MINUS_SRC_ALPHA);
 
-   gr_fb_blank(true);
-   gr_fb_blank(false);
+//    gr_fb_blank(true);
+//    gr_fb_blank(false);
 
     return 0;
 }
