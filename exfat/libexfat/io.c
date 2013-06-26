@@ -250,7 +250,7 @@ off64_t exfat_seek(struct exfat_dev* dev, off64_t offset, int whence)
 {
 #ifdef USE_UBLIO
 	/* XXX SEEK_CUR will be handled incorrectly */
-	return dev->pos = lseek64(dev->fd, offset, whence);
+	return dev->pos = lseek(dev->fd, offset, whence);
 #else
 	return lseek64(dev->fd, offset, whence);
 #endif
@@ -286,7 +286,7 @@ void exfat_pread(struct exfat_dev* dev, void* buffer, size_t size,
 #ifdef USE_UBLIO
 	if (ublio_pread(dev->ufh, buffer, size, offset) != size)
 #else
-	if (pread64(dev->fd, buffer, size, offset) != size)
+	if (pread(dev->fd, buffer, size, offset) != size)
 #endif
 		exfat_bug("failed to read %zu bytes from file at %"PRIu64, size,
 				(uint64_t) offset);
@@ -298,7 +298,7 @@ void exfat_pwrite(struct exfat_dev* dev, const void* buffer, size_t size,
 #ifdef USE_UBLIO
 	if (ublio_pwrite(dev->ufh, buffer, size, offset) != size)
 #else
-	if (pwrite64(dev->fd, buffer, size, offset) != size)
+	if (pwrite(dev->fd, buffer, size, offset) != size)
 #endif
 		exfat_bug("failed to write %zu bytes to file at %"PRIu64, size,
 				(uint64_t) offset);
