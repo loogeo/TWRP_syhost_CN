@@ -4,8 +4,8 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := events.c resources.c
 
-ifneq ($(TW_BOARD_CUSTOM_GRAPHICS),)
-    LOCAL_SRC_FILES += $(TW_BOARD_CUSTOM_GRAPHICS)
+ifeq ($(TW_BOARD_CHN_GRAPHICS), true)
+    LOCAL_SRC_FILES += graphics_cn.c
 else
     LOCAL_SRC_FILES += graphics.c
 endif
