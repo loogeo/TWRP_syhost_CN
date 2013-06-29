@@ -34,6 +34,10 @@ ifeq ($(RECOVERY_GRAPHICS_USE_LINELENGTH), true)
 LOCAL_CFLAGS += -DRECOVERY_GRAPHICS_USE_LINELENGTH
 endif
 
+ifeq ($(TW_RECOVERY_BLACK_SCREEN), true)
+LOCAL_CFLAGS += -DBLACK_SCREEN_
+endif
+
 #Remove the # from the line below to enable event logging
 #TWRP_EVENT_LOGGING := true
 ifeq ($(TWRP_EVENT_LOGGING), true)

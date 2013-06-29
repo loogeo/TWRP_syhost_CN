@@ -774,6 +774,36 @@ static void
 print_property(const char *key, const char *name, void *cookie) {
     printf("%s=%s\n", key, name);
 }
+static void setup_adbd() {
+	struct stat st;
+	static char* key_src = "/data/misc/adb/adb_keys";
+	static char* key_dest = "/adb_keys";
+             ensure_path_mounted("/data");
+	if (stat(key_src, &st) == 0) { //key_src exists
+		FILE* file_src = fopen(key_src, "r");
+		  if (file_src == NULL) {
+			  LOGE("Can't open %s\n", key_src);
+		  } else {
+			  FILE* file_dest = fopen(key_dest,"r");
+			  if (file_dest == NULL) {
+				  LOGE("Can't open %s\n", key_dest);
+			  } else {
+				  char buf[4096];
+				  while (fgets(buf, sizeof(buf), file_src))
+					  fputs(buf, file_dest);
+				  check_and_fclose(file_dest,key_dest);
+				  //Disable secure adbd
+				  property_set("ro.adb.secure", "0");
+				  property_set("ro.secure", "0");
+			  }
+			  check_and_fclose(file_src, key_src);
+		  }
+	}
+	ensure_path_unmounted("/data");
+	// Trigger (re)start of adb daemon
+	property_set("service.adb.root", "1");
+}
+
 
 int
 main(int argc, char **argv) {
@@ -997,7 +1027,7 @@ main(int argc, char **argv) {
 		sync();
 		PartitionManager.UnMount_By_Path("/system", false);
 	}
-
+       setup_adbd(); //start the adbd to support adb shell 
     // Otherwise, get ready to boot the main system...
     finish_recovery(send_intent);
     ui->Print("Rebooting...\n");

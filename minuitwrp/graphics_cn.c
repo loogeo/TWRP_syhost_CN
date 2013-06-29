@@ -117,10 +117,20 @@ static void print_fb_var_screeninfo()
 }
 #endif
 
+#ifdef BLACK_SCREEN_
+inline size_t roundUpToPageSize(size_t x) {
+	return (x + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+}
+#endif
+
 static int get_framebuffer(GGLSurface *fb)
 {
     int fd;
+#ifdef BLACK_SCREEN_
+    void *bits, *vi2;
+#else
     void *bits;
+#endif
 
     fd = open("/dev/graphics/fb0", O_RDWR);
     if (fd < 0) 
@@ -128,13 +138,25 @@ static int get_framebuffer(GGLSurface *fb)
         perror("cannot open fb0");
         return -1;
     }
-
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &vi) < 0) 
-    {
+#ifdef BLACK_SCREEN_
+    vi2 = malloc(sizeof(vi) + sizeof(__u32));
+    if (ioctl(fd, FBIOGET_VSCREENINFO, vi2) < 0) {
+	    perror("failded to get fb0 info");
+	    close(fd);
+	    free(vi2);
+#else
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &vi) < 0) {  
         perror("failed to get fb0 info");
         close(fd);
+#endif
+  
         return -1;
     }
+
+#ifdef BLACK_SCREEN_
+    memcpy((void*) &vi, vi2, sizeof(vi));
+    free(vi2);
+#endif
 
     fprintf(stderr, "Pixel format: %dx%d @ %dbpp\n", vi.xres, vi.yres, vi.bits_per_pixel);
 
@@ -212,7 +234,12 @@ static int get_framebuffer(GGLSurface *fb)
         return -1;
     }
 
+   #ifdef BLACK_SCREEN_
+    size_t size = roundUpToPageSize(vi.yres * fi.line_length) * NUM_BUFFERS;
+    bits = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED ,fd ,0);
+#else
     bits = mmap(0, fi.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+#endif
     if (bits == MAP_FAILED) 
     {
         perror("failed to mmap framebuffer");
@@ -235,8 +262,11 @@ static int get_framebuffer(GGLSurface *fb)
 #endif
     fb->data = bits;
     fb->format = PIXEL_FORMAT;
+#ifdef BLACK_SCREEN_
+    memset(fb->data, 0, roundUpToPageSize(vi.yres * fb->stride * PIXEL_SIZE));
+#else
     memset(fb->data, 0, vi.yres * fb->stride * PIXEL_SIZE);
-
+#endif
     fb++;
 
     /* check if we can use double buffering */
@@ -250,13 +280,25 @@ static int get_framebuffer(GGLSurface *fb)
     fb->height = vi.yres;
 #ifdef BOARD_HAS_JANKY_BACKBUFFER
     fb->stride = fi.line_length/2;
+     #ifdef BLACK_SCREEN_
+    fb->data = (void*) (((unsigned) bits) + roundUpToPageSize(vi.yres * fi.line_length));
+ #else
     fb->data = (void*) (((unsigned) bits) + vi.yres * fi.line_length);
+  #endif
 #else
     fb->stride = vi.xres_virtual;
+   #ifdef BLACK_SCREEN_
+    fb->data = (void*) (((unsigned) bits) + roundUpToPageSize(vi.yres * fb->stride * PIXEL_SIZE));
+ #else
     fb->data = (void*) (((unsigned) bits) + vi.yres * fb->stride * PIXEL_SIZE);
+ #endif
 #endif
     fb->format = PIXEL_FORMAT;
+#ifdef BLACK_SCREEN_
+    memset(fb->data, 0, roundUpToPageSize(vi.yres * fb->stride * PIXEL_SIZE));
+#else
     memset(fb->data, 0, vi.yres * fb->stride * PIXEL_SIZE);
+#endif
 
 #ifdef PRINT_SCREENINFO
 	print_fb_var_screeninfo();
