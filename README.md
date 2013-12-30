@@ -1,6 +1,10 @@
 在BoardConfig.mk中加入定义:
-TW_BOARD_CHN_GRAPHICS := true
+`TW_BOARD_CHN_GRAPHICS := true`
 就可以本地化了。。反之英文
+
+如果没有办法初始化屏幕，出现黑屏现在，
+可以在Boardconfig.mk中加入如下的定义
+`TW_RECOVERY_BLACK_SCREEN := true`
 
 
 **Team Win Recovery Project (TWRP)**
